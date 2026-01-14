@@ -1,0 +1,149 @@
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local TCS = game:GetService("TextChatService")
+local LP = Players.LocalPlayer
+
+local SG = Instance.new("ScreenGui")
+SG.Name = "DG_Mirror_v7"
+SG.ResetOnSpawn = false
+pcall(function() SG.Parent = game:GetService("CoreGui") end)
+if not SG.Parent then SG.Parent = LP:WaitForChild("PlayerGui") end
+
+local function AddCorner(obj, amt)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, amt or 8)
+    c.Parent = obj
+end
+
+-- Optimization: Find the REAL chat box
+local function GetOfficialTextBox()
+    -- Search Modern UI
+    local modern = LP.PlayerGui:FindFirstChild("ChatInputBarConfiguration", true)
+    if modern and modern:IsA("TextBox") then return modern end
+    
+    -- Search Legacy UI
+    local legacy = LP.PlayerGui:FindFirstChild("ChatBar", true)
+    if legacy and legacy:IsA("TextBox") then return legacy end
+    
+    return nil
+end
+
+local function Drag(obj)
+    local active, startInput, startPos
+    obj.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            active = true
+            startInput = input.Position
+            startPos = obj.Position
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if active and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - startInput
+            obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    obj.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            active = false
+        end
+    end)
+end
+
+
+local Main = Instance.new("Frame", SG)
+Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+Main.Size = UDim2.new(0, 240, 0, 140)
+Main.Position = UDim2.new(0.5, -120, 0.5, -70)
+Main.BorderSizePixel = 0
+AddCorner(Main, 12)
+Drag(Main)
+
+local Title = Instance.new("TextLabel", Main)
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Title.Text = "  MIRROR CHAT"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.Font = Enum.Font.Code
+Title.TextXAlignment = Enum.TextXAlignment.Left
+AddCorner(Title, 12)
+
+local MinBtn = Instance.new("TextButton", Main)
+MinBtn.Size = UDim2.new(0, 30, 0, 22)
+MinBtn.Position = UDim2.new(1, -35, 0, 4)
+MinBtn.Text = "-"
+MinBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+MinBtn.TextColor3 = Color3.new(1, 1, 1)
+AddCorner(MinBtn, 6)
+
+local CustomInput = Instance.new("TextBox", Main)
+CustomInput.Size = UDim2.new(0.9, 0, 0, 40)
+CustomInput.Position = UDim2.new(0.05, 0, 0.35, 0)
+CustomInput.PlaceholderText = "Syncing with official chat..."
+CustomInput.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+CustomInput.TextColor3 = Color3.new(1, 1, 1)
+CustomInput.Text = ""
+CustomInput.Font = Enum.Font.SourceSans
+AddCorner(CustomInput, 8)
+
+local SendBtn = Instance.new("TextButton", Main)
+SendBtn.Size = UDim2.new(0.9, 0, 0, 30)
+SendBtn.Position = UDim2.new(0.05, 0, 0.72, 0)
+SendBtn.Text = "FORCE SYNC & SEND"
+SendBtn.BackgroundColor3 = Color3.fromRGB(80, 40, 150)
+SendBtn.TextColor3 = Color3.new(1, 1, 1)
+SendBtn.Font = Enum.Font.SourceSansBold
+AddCorner(SendBtn, 8)
+
+local Icon = Instance.new("TextButton", SG)
+Icon.Size = UDim2.new(0, 50, 0, 50)
+Icon.Position = Main.Position
+Icon.Text = "C"
+Icon.Visible = false
+Icon.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+Icon.TextColor3 = Color3.new(1, 1, 1)
+AddCorner(Icon, 25)
+Drag(Icon)
+
+
+local function SyncAndSend()
+    local official = GetOfficialTextBox()
+    local message = CustomInput.Text
+    
+    if message ~= "" then
+        if official then
+            -- Method: Inject text into official bar and simulate 'Enter'
+            official.Text = message
+            task.wait(0.05)
+            -- Firing the send logic via TextChatService
+            if TCS.ChatVersion == Enum.ChatVersion.TextChatService then
+                TCS.TextChannels.RBXGeneral:SendAsync(message)
+            else
+                -- Legacy fallback
+                local remote = game:GetService("ReplicatedStorage"):FindFirstChild("SayMessageRequest", true)
+                if remote then remote:FireServer(message, "All") end
+            end
+        else
+            -- Backup if UI is missing
+            if TCS.ChatVersion == Enum.ChatVersion.TextChatService then
+                TCS.TextChannels.RBXGeneral:SendAsync(message)
+            end
+        end
+        CustomInput.Text = ""
+    end
+end
+
+SendBtn.MouseButton1Click:Connect(SyncAndSend)
+
+
+MinBtn.MouseButton1Click:Connect(function()
+    Main.Visible = false
+    Icon.Position = Main.Position
+    Icon.Visible = true
+end)
+
+Icon.MouseButton1Click:Connect(function()
+    Icon.Visible = false
+    Main.Position = Icon.Position
+    Main.Visible = true
+end)
