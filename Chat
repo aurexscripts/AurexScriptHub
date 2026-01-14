@@ -15,7 +15,7 @@ local function AddCorner(obj, amt)
     c.Parent = obj
 end
 
--- Optimization: Find the REAL chat box
+
 local function GetOfficialTextBox()
     -- Search Modern UI
     local modern = LP.PlayerGui:FindFirstChild("ChatInputBarConfiguration", true)
